@@ -107,7 +107,7 @@ later application stages.
 From the project root, with the dependencies in `requirements.txt` installed:
 
 ```powershell
-python "conversion_progressions/step 1/main.py"
+python "main.py"
 ```
 
 ## Completion check
