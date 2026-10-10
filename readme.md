@@ -98,8 +98,6 @@ later application stages.
   responding while a long run is in progress.
 - Results are shown as text; there is no full set of MATLAB-style plots or
   experiment-history workflow yet.
-- This step uses the Python implementation in the project root. It is not a
-  line-by-line translation of the MATLAB `uifigure` component construction.
 
 ## Run
 
