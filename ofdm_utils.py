@@ -1,13 +1,22 @@
-"""OFDM building blocks: subcarriers, constellations, bit mapping, decoding."""
+"""Core OFDM primitives used by the simulator.
+
+The functions in this module define how pilot and data subcarriers are selected,
+how bit streams are mapped onto modulation symbols, and how noisy received
+samples are decoded back into bits. These helpers keep the simulation logic
+consistent with the MATLAB reference while still running efficiently in NumPy.
+"""
 
 import numpy as np
 
 
 def create_used_subcarrier_indices(num_subcarriers):
-    """Return the MATLAB-compatible used-subcarrier indices.
+    """Return the set of active OFDM subcarrier indices used by the MATLAB model.
 
-    The MATLAB reference adds 32 to signed offsets for its 1-based indexing.
-    Convert that mapping to NumPy's 0-based indexing before wrapping bins.
+    The reference implementation defines a centered pattern of used bins in
+    signed frequency coordinates. This helper converts those signed offsets to
+    the zero-based indexing scheme NumPy expects, wraps the values around the FFT
+    circular bandwidth, and returns the bins in ascending order. The result is
+    then reused across the transmit, receive, and distortion analysis stages.
     """
     if num_subcarriers < 8:
         raise ValueError("FFT size must be at least 8.")
@@ -36,7 +45,13 @@ def create_used_subcarrier_indices(num_subcarriers):
 
 
 def create_constellation(modulation_scheme):
-    """Construct the complex modulation constellation for the chosen scheme."""
+    """Build the normalized modulation constellation for a chosen scheme.
+
+    Each supported scheme (BPSK, QPSK, 16QAM, 64QAM) defines a complex symbol
+    set with the correct spacing and average energy. The returned values are
+    scaled so their mean squared magnitude is normalized, which keeps the
+    simulation signal level stable across different modulation orders.
+    """
     if modulation_scheme == "BPSK":
         constellation = np.array([-1, 1], dtype=complex)
     elif modulation_scheme == "QPSK":
@@ -61,7 +76,13 @@ def create_constellation(modulation_scheme):
 
 
 def create_bit_mapping(num_points):
-    """Create the bit-to-symbol mapping for a constellation with the given size."""
+    """Create a lookup table that converts bit groups into constellation indices.
+
+    The mapping keeps the same bit ordering expected by the MATLAB reference:
+    the most significant bit is read first for each symbol. This allows the
+    transmitter to pack several bits into one QAM point and the receiver to
+    recover them using the inverse scheme during demodulation.
+    """
     bits_per_symbol = int(np.log2(num_points))
     mappings = np.zeros((num_points, bits_per_symbol), dtype=np.int8)
     for index in range(num_points):
@@ -71,7 +92,13 @@ def create_bit_mapping(num_points):
 
 
 def minimum_distance_decode(symbols, constellation, bit_mapping):
-    """Decode received symbols by nearest-neighbor matching against the constellation."""
+    """Decode received complex values to bit groups using nearest-neighbor matching.
+
+    Each received symbol is compared against the available constellation points,
+    and the closest point is selected. The matching index is then mapped through
+    the bit lookup table to recover the transmitted bits. This function is the
+    demodulation counterpart of the mapper used during transmission.
+    """
     symbols = np.asarray(symbols).reshape(-1)
     distances = np.abs(symbols[:, None] - constellation[None, :]) ** 2
     indices = np.argmin(distances, axis=1)
