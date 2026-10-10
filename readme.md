@@ -17,13 +17,14 @@ port, not a recreation of the complete MATLAB interface.
 
 ## MATLAB-to-Python mapping
 
-| MATLAB concept | Step 1 implementation |
-| --- | --- |
-| App Designer window and controls | `BasicWindow` and standard PyQt6 widgets |
-| Button-pushed callback | `run_simulation` method connected to the run button |
-| Simulation parameters | `SimulationParameters` dataclass |
-| MATLAB numeric arrays and operations | NumPy arrays and the shared `simulation.py` implementation |
-| Status/progress output | Progress bar, read-only text area, and message boxes |
+| MATLAB concept | Step 1 implementation | Exact Python location |
+| --- | --- | --- |
+| App Designer window and controls | `BasicWindow` and standard PyQt6 widgets | `conversion_progressions/step 1/main.py` → `BasicWindow.__init__` and `BasicWindow._spin` |
+| Button-pushed callback | `run_simulation` method connected to the run button | `conversion_progressions/step 1/main.py` → `BasicWindow.run_simulation` |
+| Simulation parameters | `SimulationParameters` dataclass | `parameters.py` → `SimulationParameters` |
+| Parameter validation | GUI-level validation before starting the run | `parameters.py` → `validate_parameters` |
+| MATLAB numeric arrays and operations | NumPy arrays and the shared simulation core | `simulation.py` → `run_simulation` and helper functions such as `_generate_symbol_signals` |
+| Status/progress output | Progress bar, read-only text area, and message boxes | `conversion_progressions/step 1/main.py` → `BasicWindow._update_progress` and `BasicWindow.run_simulation` |
 
 The interface and numerical code are deliberately kept separate. This makes
 the algorithm easier to test and lets later interface steps reuse the same
@@ -57,19 +58,19 @@ the GUI. Instead, it separates the callback's responsibilities:
 At a high level, the MATLAB calculation maps to the shared Python simulation
 like this:
 
-| MATLAB main-callback section | Python implementation |
-| --- | --- |
-| Set antenna, channel, CP, FFT, modulation, trial, and SNR parameters | UI controls, `SimulationParameters`, and `config.py` defaults |
-| `switch` to define modulation symbols, normalize them, create bit mappings | `create_constellation` and `create_bit_mapping` in `ofdm_utils.py` |
-| Allocate arrays for bits, received signals, BER, and jammer statistics | NumPy arrays allocated in `simulation.run_simulation` |
-| Monte-Carlo trial loop and random channel generation | `for trial in range(params.num_trials)` and NumPy random generator |
-| Loop over SNR and OFDM symbols | Python loops over `params.snr_dB_list` and symbol indices |
-| Generate user and jammer signals, add CP, convolve with channels | `_generate_symbol_signals`, `_add_cp`, `numpy.fft`, and `numpy.convolve` |
-| Truncate CP, transform to frequency domain, select active tones | NumPy slicing and FFT, plus `create_used_subcarrier_indices` |
-| SVD jammer estimates and projection matrices | `numpy.linalg.svd` and complex-valued NumPy projector operations |
-| Zero-forcing/equalization, nearest constellation decode, and error counts | `numpy.linalg.lstsq`, `minimum_distance_decode`, and BER accumulators |
-| Normalize BER, calculate summary metrics, export tables | Final normalization and Pandas CSV export in `simulation.py` |
-| Update UI plots and progress during the run | Progress callback and log callback in Step 1; later stages add threaded live plots |
+| MATLAB main-callback section | Python implementation | Exact file and function |
+| --- | --- | --- |
+| Set antenna, channel, CP, FFT, modulation, trial, and SNR parameters | UI controls, `SimulationParameters`, and `config.py` defaults | `conversion_progressions/step 1/main.py` → `BasicWindow.run_simulation`; `parameters.py` → `SimulationParameters`; `config.py` → default settings |
+| `switch` to define modulation symbols, normalize them, create bit mappings | Constellation and bit mapping utilities | `ofdm_utils.py` → `create_constellation`, `create_bit_mapping` |
+| Allocate arrays for bits, received signals, BER, and jammer statistics | NumPy arrays allocated inside the simulation core | `simulation.py` → `run_simulation` |
+| Monte-Carlo trial loop and random channel generation | Trial loop using a NumPy RNG | `simulation.py` → `run_simulation` (`for trial in range(params.num_trials)`) |
+| Loop over SNR and OFDM symbols | Python loops over SNR points and symbol indices | `simulation.py` → `run_simulation` (`for snr_index, snr_db in enumerate(params.snr_dB_list)`) |
+| Generate user and jammer signals, add CP, convolve with channels | Signal generation helper | `simulation.py` → `_generate_symbol_signals`, `_add_cp`, `_complex_normal` |
+| Truncate CP, transform to frequency domain, select active tones | FFT and active-subcarrier selection | `simulation.py` → `_channel_to_frequency`; `ofdm_utils.py` → `create_used_subcarrier_indices` |
+| SVD jammer estimates and projection matrices | Dominant-vector and matrix-solver helpers | `simulation.py` → `_dominant_vector`, `_lstsq_or_zeros` |
+| Zero-forcing/equalization, nearest constellation decode, and error counts | Least-squares equalization and nearest-neighbor decoding | `simulation.py` → `run_simulation`; `ofdm_utils.py` → `minimum_distance_decode` |
+| Normalize BER, calculate summary metrics, export tables | Final metrics and CSV export | `simulation.py` → `run_simulation` (final BER normalization and export block) |
+| Update UI plots and progress during the run | Progress callback and log callback | `conversion_progressions/step 1/main.py` → `BasicWindow._update_progress`; `simulation.py` → `run_simulation` callback parameters |
 
 The nested-loop structure is preserved conceptually: each trial creates a
 channel realization, the SNR loop evaluates noise levels, and the OFDM-symbol
@@ -98,13 +99,15 @@ later application stages.
   responding while a long run is in progress.
 - Results are shown as text; there is no full set of MATLAB-style plots or
   experiment-history workflow yet.
+- This step uses the Python implementation in the project root. It is not a
+  line-by-line translation of the MATLAB `uifigure` component construction.
 
 ## Run
 
 From the project root, with the dependencies in `requirements.txt` installed:
 
 ```powershell
-python "main.py"
+python "conversion_progressions/step 1/main.py"
 ```
 
 ## Completion check
