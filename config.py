@@ -1,4 +1,10 @@
-"""Default values and constants for the TVWS OFDM simulator."""
+"""Default configuration values for the TVWS OFDM simulator.
+
+This module centralizes the parameters used by the GUI and the simulation
+engine so every run starts from a common baseline. The values here define the
+number of antennas, the default channel model, FFT/CP sizing, jammer settings,
+and the CSV export paths used when results are saved to disk.
+"""
 
 DEFAULT_RX = 1
 DEFAULT_TX = 1
