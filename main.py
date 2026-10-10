@@ -1,5 +1,3 @@
-"""Step 1: a minimal PyQt6 front end for the shared OFDM simulator."""
-
 import sys
 from pathlib import Path
 
@@ -31,7 +29,12 @@ from simulation import run_simulation
 
 
 class BasicWindow(QMainWindow):
-    """A small first-step GUI for configuring and running a simulation."""
+    """Provide the initial Qt window used to set up and launch a simulation.
+
+    The widget contains the smallest useful user interface for the OFDM port:
+    it exposes the key parameters, validates them before the run begins, and
+    hands control to the shared simulation logic once the user clicks start.
+    """
 
     def __init__(self):
         super().__init__()
